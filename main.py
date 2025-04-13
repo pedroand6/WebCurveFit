@@ -1,5 +1,5 @@
 import flet as ft
-import pyperclip
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -40,24 +40,22 @@ def main(page: ft.Page):
         
         #Primeiro limpamos todas as linhas e colunas dos dados
         tableRows.clear()
-        firstCol.clear()
-        secondCol.clear()
-        clipboard = pyperclip.paste() #Pega o conteúdo da sua área de transferência como uma string
-        rawData = clipboard.replace('\r', '').split("\n") #Divide a string em listas por quebra de linha e remove os \r
+        clipboard = pd.read_clipboard(header=None) #Pega o conteúdo da sua área de transferência como um dataframe
 
         #Para cada linha de dado, separa ela em duas colunas, trocando eventuais vírgulas por ponto e adiciona os dados
         #em suas colunas certas e células da tabela do flet
-        for line in rawData:
-            lineData = line.replace(",", ".").split("\t")
+        for index, row in clipboard.iterrows():
+            rowdata = [float(item) for item in row]
+
             try:
-                firstCol.append(float(lineData[0]))
-                secondCol.append(float(lineData[1]))
+                firstCol.append(rowdata[0])
+                secondCol.append(rowdata[1])
 
                 tableRows.append(
                     ft.DataRow(
                         cells=[
-                            ft.DataCell(ft.Text(lineData[0])),
-                            ft.DataCell(ft.Text(lineData[1])),
+                            ft.DataCell(ft.Text(rowdata[0])),
+                            ft.DataCell(ft.Text(rowdata[1])),
                         ],
                 ))
             except Exception as e:
@@ -114,13 +112,13 @@ def main(page: ft.Page):
         #Cria os parâmetros para o lmfit com os parâmetros anteriores
         params = lmfit.Parameters()
         for param in paramString:
-            params.add(param, value=1)
+            params.add(param, value=0)
         
         f = make_func(expr)
         
-        gmodel = Model(f)  #Seleciona um modelo da espressão    
+        gmodel = Model(f)  #Seleciona um modelo da expressão    
         result = gmodel.fit(secondCol, params, x=firstCol) # Ajusta a curva e os parâmetros
-        bestFit = result.best_fist
+        bestFit = result.best_fit
 
         plt.plot(firstCol, bestFit, '-', label='fit') #Plota os resultados
         plt.legend()
@@ -161,13 +159,26 @@ def main(page: ft.Page):
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 
+    #Container de ajuste do gráfico
+    graphSets = ft.Container(
+        bgcolor=ft.colors.LIGHT_BLUE_200,
+        width=300,
+        height=300,
+        border_radius=10,
+        padding=20,
+        expand_loose=10,
+        content=ft.Column([
+            ft.IconButton(ft.icons.CIRCLE, icon_color=ft.colors.BLUE, tooltip="Color")
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    )
+
     page.add(
         ft.Text("PLOT LAB", size=50, font_family="Rubik"),
         ft.Row([
             mainContainer,
-            MatplotlibChart(figure, expand=True)
+            MatplotlibChart(figure, expand=True),
         ], width=900),
     )
 
 
-ft.app(main, view=ft.AppView.WEB_BROWSER, web_renderer=ft.WebRenderer.HTML)
+ft.app(main, view=ft.AppView.WEB_BROWSER)

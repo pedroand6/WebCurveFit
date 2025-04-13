@@ -1,1 +1,5 @@
-flet==0.24.*
+flet
+lmfit
+matplotlib
+pandas
+numpy
