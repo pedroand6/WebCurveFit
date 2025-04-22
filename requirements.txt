@@ -1,5 +1,6 @@
-flet
-lmfit
-matplotlib
-pandas
-numpy
+flet==0.26.0,
+matplotlib==3.8.4,
+pandas==2.2.3,
+numpy==2.0.2,
+symfit==0.5.6,
+micropip

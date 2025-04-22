@@ -1,24 +1,23 @@
 import flet as ft
-import pandas as pd
+from pandas import DataFrame
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-import numpy as np
-from numpy import sin, cos, exp, tan
-from lmfit import Model
-import lmfit
-import re
+from matplotlib import use
+from numpy import linspace
+from re import findall
 from flet.matplotlib_chart import MatplotlibChart
+import sys
 
-mpl.use("svg")
+use("svg")
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
 
-    #Importa as fontes usadas da pasta
-    page.fonts = {
-        "Rubik": "/fonts/Rubik-Regular.ttf",
-    }
+    if sys.platform == "emscripten": # check if run in Pyodide environment
+        import micropip
+        await micropip.install("symfit")
 
-    page.bgcolor = ft.colors.WHITE38
+    from symfit import parameters, variables, Fit, cos, sin, tan, exp, pi
+
+    page.bgcolor = ft.Colors.WHITE
 
     #Alinhamento de todos os itens da página no centro
     page.padding = 0
@@ -40,7 +39,8 @@ def main(page: ft.Page):
         
         #Primeiro limpamos todas as linhas e colunas dos dados
         tableRows.clear()
-        clipboard = pd.read_clipboard(header=None) #Pega o conteúdo da sua área de transferência como um dataframe
+        data = page.get_clipboard()
+        clipboard = DataFrame([x.split('\t') for x in data.split('\n')]) #Pega o conteúdo da sua área de transferência como um dataframe
 
         #Para cada linha de dado, separa ela em duas colunas, trocando eventuais vírgulas por ponto e adiciona os dados
         #em suas colunas certas e células da tabela do flet
@@ -90,7 +90,7 @@ def main(page: ft.Page):
         
         #Pegamos todos os parâmetros utilizados pela função como letras ou conjuntos de letras quaisquer do alfabeto, com exceção do 'x' (a variável)
         #e outras combinações que podem ser utilizadas como funções
-        paramString = list(set(re.findall(r'\b[a-zA-Z_]\w*\b', expr)) - {'x', 'np', 'cos', 'sin', 'tan', 'exp'})
+        paramString = list(set(findall(r'\b[a-zA-Z_]\w*\b', expr)) - {'x', 'np.', 'cos', 'sin', 'tan', 'exp', 'e', 'pi'})
         
         def make_func(expres):
             '''
@@ -98,36 +98,57 @@ def main(page: ft.Page):
             
             Função feita para obter a função equivalente à expressão anterior em string como algo executável do python
             '''
-            #String que servirá como nossa função de ajuste
-            funcstr=f'''def func(x, **params): 
-            for key, value in params.items():
-                exec(f'{{key}} = float({{value}})', globals()) #Associa e declara cada parâmetro da expressão como uma variável associada da função (**params -> um ou mais parâmetros)
+            paramsSeq = ''
+            for i in params.keys():
+                paramsSeq += f',{i}'
 
-            return {expres}'''
+            #String que servirá como nossa função de ajuste
+            funcstr=f'''def func(x{paramsSeq}): return {expres}'''
             
             exec(funcstr, globals())
             
             return func
         
-        #Cria os parâmetros para o lmfit com os parâmetros anteriores
-        params = lmfit.Parameters()
+        #Cria os parâmetros para o symfit com os parâmetros anteriores
+        params = {}
         for param in paramString:
-            params.add(param, value=0)
-        
-        f = make_func(expr)
-        
-        gmodel = Model(f)  #Seleciona um modelo da expressão    
-        result = gmodel.fit(secondCol, params, x=firstCol) # Ajusta a curva e os parâmetros
-        bestFit = result.best_fit
+            params[param] = 0
 
-        plt.plot(firstCol, bestFit, '-', label='fit') #Plota os resultados
+        paramsSeq = ''
+        for i in params.keys():
+            paramsSeq += f'{i},'
+        
+        localdict = {}
+        globals()['parameters'] = parameters
+        exec(f'{paramsSeq[0:-1]} = parameters("{paramsSeq[0:-1]}")', globals(), localdict)
+        
+        x, y = variables('x, y')
+        f = make_func(expr)
+
+        localdict['cos'] = cos
+        localdict['sin'] = sin
+        localdict['tan'] = tan
+        localdict['exp'] = exp
+        localdict['e'] = exp
+        localdict['pi'] = pi
+
+        exec(f'model = {{ y: {expr} }}', {'x':x, 'y':y} | localdict, localdict)
+        model = localdict['model']
+           
+        fit = Fit(model, firstCol, secondCol) # Ajusta a curva e os parâmetros
+        fit_result = fit.execute()
+
+        x_data = linspace(min(firstCol), max(firstCol), 100)
+
+        plt.plot(firstCol, secondCol, 'o')
+        plt.plot(x_data, fit.model(x=x_data, **fit_result.params).y, '-', label='fit') #Plota os resultados
         plt.legend()
         
         page.update()
     
     #Container principal, ao lado do plot do gráfico
     mainContainer = ft.Container(
-        bgcolor=ft.colors.LIGHT_BLUE_200,
+        bgcolor=ft.Colors.LIGHT_BLUE_200,
         width=300,
         height=600,
         border_radius=10,
@@ -135,19 +156,19 @@ def main(page: ft.Page):
         expand_loose=10,
         content=ft.Column([
             ft.Row([
-                ft.TextField(prefix_text="f(x) = ", width=220, prefix_style=ft.TextStyle(color=ft.colors.GREY_200, size=16, weight=ft.FontWeight.BOLD), 
-                         border_color=ft.colors.GREY_200, border_width=2, color=ft.colors.GREY_200, 
-                         cursor_color=ft.colors.GREY_200, selection_color=ft.colors.GREY_500, hint_text="Write your equation...", 
-                         hint_style=ft.TextStyle(color=ft.colors.GREY_300), text_align=ft.TextAlign.LEFT),
-                ft.IconButton(icon=ft.icons.SEND, icon_color=ft.colors.GREY_200, icon_size=20, highlight_color=ft.colors.RED, hover_color=ft.colors.GREY_500, on_click=sendPlot)
+                ft.TextField(prefix_text="f(x) = ", width=220, prefix_style=ft.TextStyle(color=ft.Colors.GREY_200, size=16, weight=ft.FontWeight.BOLD), 
+                         border_color=ft.Colors.GREY_200, border_width=2, color=ft.Colors.GREY_200, 
+                         cursor_color=ft.Colors.GREY_200, selection_color=ft.Colors.GREY_500, hint_text="Write your equation...", 
+                         hint_style=ft.TextStyle(color=ft.Colors.GREY_300), text_align=ft.TextAlign.LEFT),
+                ft.IconButton(icon=ft.Icons.SEND, icon_color=ft.Colors.GREY_200, icon_size=20, highlight_color=ft.Colors.RED, hover_color=ft.Colors.GREY_500, on_click=sendPlot)
             ]),
             ft.Container(height=5),
-            ft.IconButton(icon=ft.icons.PASTE, icon_color=ft.colors.GREY_200, icon_size=20, highlight_color=ft.colors.RED, hover_color=ft.colors.GREY_500, on_click=PasteData),
+            ft.IconButton(icon=ft.Icons.PASTE, icon_color=ft.Colors.GREY_200, icon_size=20, highlight_color=ft.Colors.RED, hover_color=ft.Colors.GREY_500, on_click=PasteData),
             ft.ListView(expand=1, spacing=10, padding=5, controls=[
                 ft.DataTable(
                     columns=[
-                        ft.DataColumn(ft.Text("x", size=20, color=ft.colors.WHITE)),
-                        ft.DataColumn(ft.Text("y", size=20, color=ft.colors.WHITE)),
+                        ft.DataColumn(ft.Text("x", size=20, color=ft.Colors.WHITE)),
+                        ft.DataColumn(ft.Text("y", size=20, color=ft.Colors.WHITE)),
                     ],
                     rows=rows,
                     vertical_lines=ft.BorderSide(1, "white"),
@@ -161,19 +182,19 @@ def main(page: ft.Page):
 
     #Container de ajuste do gráfico
     graphSets = ft.Container(
-        bgcolor=ft.colors.LIGHT_BLUE_200,
+        bgcolor=ft.Colors.LIGHT_BLUE_200,
         width=300,
         height=300,
         border_radius=10,
         padding=20,
         expand_loose=10,
         content=ft.Column([
-            ft.IconButton(ft.icons.CIRCLE, icon_color=ft.colors.BLUE, tooltip="Color")
+            ft.IconButton(ft.Icons.CIRCLE, icon_color=ft.Colors.BLUE, tooltip="Color")
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 
     page.add(
-        ft.Text("PLOT LAB", size=50, font_family="Rubik"),
+        ft.Text("PLOT LAB", size=50),
         ft.Row([
             mainContainer,
             MatplotlibChart(figure, expand=True),
