@@ -10,10 +10,8 @@ authors = [
 dependencies = [
   "flet==0.27.6",
   "matplotlib==3.8.4",
-  "pandas==2.2.3",
   "numpy==2.0.2",
   "symfit==0.5.6",
-  "sympy",
   "micropip"
 ]
 
@@ -39,7 +37,6 @@ path = "src"
 dev-dependencies = [
     "flet[all]==0.27.6",
     "matplotlib==3.8.4",
-    "pandas==2.2.3",
     "numpy==2.0.2",
     "symfit==0.5.6",
     "micropip"

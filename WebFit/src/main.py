@@ -1,8 +1,7 @@
 import flet as ft
-from pandas import DataFrame
 import matplotlib.pyplot as plt
 from matplotlib import use
-from numpy import linspace
+from numpy import linspace, array
 from re import findall
 from flet.matplotlib_chart import MatplotlibChart
 import sys
@@ -40,11 +39,11 @@ async def main(page: ft.Page):
         #Primeiro limpamos todas as linhas e colunas dos dados
         tableRows.clear()
         data = page.get_clipboard()
-        clipboard = DataFrame([x.split('\t') for x in data.split('\n')]) #Pega o conteúdo da sua área de transferência como um dataframe
+        clipboard = array([[float(j) for j in i.split('\t')] for i in data.splitlines()]) #Pega o conteúdo da sua área de transferência como um dataframe
 
         #Para cada linha de dado, separa ela em duas colunas, trocando eventuais vírgulas por ponto e adiciona os dados
         #em suas colunas certas e células da tabela do flet
-        for index, row in clipboard.iterrows():
+        for row in clipboard:
             rowdata = [float(item) for item in row]
 
             try:
