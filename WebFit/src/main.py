@@ -38,8 +38,15 @@ async def main(page: ft.Page):
         
         #Primeiro limpamos todas as linhas e colunas dos dados
         tableRows.clear()
-        data = page.get_clipboard()
-        clipboard = array([[float(j) for j in i.split('\t')] for i in data.splitlines()]) #Pega o conteúdo da sua área de transferência como um dataframe
+        data = e.data
+        
+        snackbar = ft.SnackBar(ft.Text(data), open=True)
+        page.overlay.append(snackbar)
+
+        page.update()
+        clipboard = array([[float(j) for j in i.split('\t')] for i in data.split(' ')]) #Pega o conteúdo da sua área de transferência como um dataframe
+
+        copyPaste.value = ''
 
         #Para cada linha de dado, separa ela em duas colunas, trocando eventuais vírgulas por ponto e adiciona os dados
         #em suas colunas certas e células da tabela do flet
@@ -144,6 +151,28 @@ async def main(page: ft.Page):
         plt.legend()
         
         page.update()
+
+    #Text Field para copiar e colar no navegador sem ter problemas e fica invisível
+    copyPaste = ft.TextField(
+                            autofocus=True,
+                            text_size=0,
+                            mouse_cursor=ft.MouseCursor.CLICK,
+                            expand=True,
+                            color=ft.Colors.TRANSPARENT,
+                            fill_color=ft.Colors.TRANSPARENT,
+                            focus_color=ft.Colors.TRANSPARENT,
+                            hover_color=ft.Colors.TRANSPARENT,
+                            border_color=ft.Colors.TRANSPARENT,
+                            cursor_color=ft.Colors.TRANSPARENT,
+                            focused_color=ft.Colors.TRANSPARENT,
+                            selection_color=ft.Colors.TRANSPARENT,
+                            cursor_error_color=ft.Colors.TRANSPARENT,
+                            focused_border_color=ft.Colors.TRANSPARENT,
+                            on_submit=PasteData,
+                            on_change=PasteData,
+                            width=200,
+                            height=500
+                        )
     
     #Container principal, ao lado do plot do gráfico
     mainContainer = ft.Container(
@@ -162,20 +191,26 @@ async def main(page: ft.Page):
                 ft.IconButton(icon=ft.Icons.SEND, icon_color=ft.Colors.GREY_200, icon_size=20, highlight_color=ft.Colors.RED, hover_color=ft.Colors.GREY_500, on_click=sendPlot)
             ]),
             ft.Container(height=5),
-            ft.IconButton(icon=ft.Icons.PASTE, icon_color=ft.Colors.GREY_200, icon_size=20, highlight_color=ft.Colors.RED, hover_color=ft.Colors.GREY_500, on_click=PasteData),
             ft.ListView(expand=1, spacing=10, padding=5, controls=[
-                ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text("x", size=20, color=ft.Colors.WHITE)),
-                        ft.DataColumn(ft.Text("y", size=20, color=ft.Colors.WHITE)),
-                    ],
-                    rows=rows,
-                    vertical_lines=ft.BorderSide(1, "white"),
-                    horizontal_lines=ft.BorderSide(1, "white"),
-                    heading_row_height=40,
-                    data_text_style=ft.TextStyle(color="white")
-                )
-            ])
+                    ft.Stack(
+                    [
+                        ft.DataTable(
+                            columns=[
+                                ft.DataColumn(ft.Text("x", size=20, color=ft.Colors.WHITE)),
+                                ft.DataColumn(ft.Text("y", size=20, color=ft.Colors.WHITE)),
+                            ],
+                            rows=rows,
+                            vertical_lines=ft.BorderSide(1, "white"),
+                            horizontal_lines=ft.BorderSide(1, "white"),
+                            heading_row_height=40,
+                            data_text_style=ft.TextStyle(color="white"),
+                            width=200,
+                            height=500
+                        ),
+                        copyPaste
+                    ])
+                ]
+            )
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 

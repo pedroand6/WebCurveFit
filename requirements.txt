@@ -1,4 +1,4 @@
-flet==0.26.0,
+flet==0.27.6,
 matplotlib==3.8.4,
 numpy==2.0.2,
 symfit==0.5.6,
